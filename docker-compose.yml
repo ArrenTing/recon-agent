@@ -1,0 +1,32 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: recon
+      POSTGRES_PASSWORD: recon          # local dev only; never reuse elsewhere
+      POSTGRES_DB: recon
+    ports:
+      - "127.0.0.1:5432:5432"           # bound to localhost on purpose
+    volumes:
+      - recon_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U recon -d recon"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build: .
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+psycopg://recon:recon@db:5432/recon
+      RECON_API_HOST: 0.0.0.0           # inside the container only; the host port below stays on localhost
+    ports:
+      - "127.0.0.1:8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    profiles: ["app"]                   # `docker compose --profile app up` once the API exists
+
+volumes:
+  recon_pgdata:
